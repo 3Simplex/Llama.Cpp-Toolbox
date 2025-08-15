@@ -408,7 +408,7 @@ function ConfigForm {
                 $global:formLabels[$index] = $label
                 $panel.Controls.Add($label)
 
-                if ($labelText -match "build|llama.cpp-branch") {
+                if ($labelText -match "build|branch") {
                     $control = New-Object System.Windows.Forms.ComboBox
                     $global:comboBoxes[$index] = $control
                     Get-ComboBoxItems $labelText $global:comboBoxes[$index]
