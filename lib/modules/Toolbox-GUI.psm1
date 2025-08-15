@@ -4,7 +4,7 @@
 # todo # Assist with update of Transformers
 
 # Llama.cpp-Toolbox GUI version
-$global:version_GUI = "0.1.5"
+$global:version_GUI = "0.1.6"
 
 Add-Type -AssemblyName System.Windows.Forms
 

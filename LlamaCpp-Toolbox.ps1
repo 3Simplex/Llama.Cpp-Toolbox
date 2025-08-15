@@ -3,18 +3,18 @@
 # This also acts as the toolbox environment setup script.
 
 # Llama.cpp-Toolbox version
-$global:version = "0.29.0"
+$global:version = "0.30.0"
 
 #$global:debug = $true
 
 # The directory where LlamaCpp-Toolbox.ps1 is initialized.
-$global:path = $PSScriptRoot 
+$global:path = $PSScriptRoot
 
 # Ensure we are starting on the right path.
-Set-Location $path 
+Set-Location $path
 
 # Define model path
-$global:models = "$path\llama.cpp\models" 
+$global:models = "$path\llama.cpp\models"
 
 # Get the physical core count for building, and inference.
 $global:NumberOfCores = [Environment]::ProcessorCount / 2 # Faster but maybe not best method, instant result.
@@ -22,7 +22,7 @@ $global:NumberOfCores = [Environment]::ProcessorCount / 2 # Faster but maybe not
 # Importing modules, debug with -Verbose
 if ( Test-Path $path\lib\modules\Toolbox-Config.psm1 ){
 $isInstalled = "True"
-Import-Module $path\lib\modules\Toolbox-Config.psm1 
+Import-Module $path\lib\modules\Toolbox-Config.psm1
 Import-Module $path\lib\modules\Llama-Chat.psm1
 Import-Module $path\lib\modules\Toolbox-Functions.psm1
 Import-Module $path\lib\modules\Toolbox-GUI.psm1

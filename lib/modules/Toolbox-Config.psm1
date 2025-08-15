@@ -2,7 +2,7 @@
 # Ordered JSON Config Module for Llama.Cpp-Toolbox
 
 # Toolbox Config Text Version
-$global:version_cfg = "0.2.5"
+$global:version_cfg = "0.2.6"
 
 
 

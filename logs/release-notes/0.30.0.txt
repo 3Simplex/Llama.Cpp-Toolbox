@@ -1,0 +1,6 @@
+- Added a new "Package Manager" feature to the toolbox.
+  - Allows users to view, update, or downgrade Python packages from `llama.cpp/requirements.txt`.
+  - Can be accessed from the "Config" window.
+- Added a new feature for developers to manage the toolbox's own repository and branch.
+  - Allows switching between different forks and branches of the toolbox for testing purposes.
+  - New configuration options `Toolbox-Repo` and `Toolbox-Branch` are available in the `ConfigForm`.

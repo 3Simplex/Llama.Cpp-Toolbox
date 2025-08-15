@@ -2,7 +2,7 @@
 # Contains the functions.
 
 # Toolbox-Functions version
-$global:version_func = "0.2.6"
+$global:version_func = "0.2.7"
 
 # Check the version, run UpdateConfig if needed.
 function VersionCheck {
