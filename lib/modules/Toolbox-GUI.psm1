@@ -282,8 +282,8 @@ function AboutForm {
     $label_about_version.Location = New-Object System.Drawing.Point(115, 9)
     $label_about_version.AutoSize = $true
 
-    $cfgRepo = Get-ConfigValue -Key "repo" # get-set the flag for repo.
-    $cfgbranch = Get-ConfigValue -Key "branch" # get-set the flag for branch.
+    $cfgRepo = Get-ConfigValue -Key "llama.cpp-repo" # get-set the flag for repo.
+    $cfgbranch = Get-ConfigValue -Key "llama.cpp-branch" # get-set the flag for branch.
     $label_about_repo = New-Object System.Windows.Forms.label
     $label_about_repo.Text = "Repo: https://github.com/$cfgRepo $cfgbranch"
     $label_about_repo.Location = New-Object System.Drawing.Point(10, 30)
@@ -362,7 +362,7 @@ function ConfigForm {
                 $items = @("cpu", "cuda", "vulkan")
                 if($global:debug){Write-Host "Debug: Set items for build: $($items -join ', ')"}
             }
-            "branch" {
+            "llama.cpp-branch" {
                 $items = Get-GitBranch
                 if($global:debug){Write-Host "Debug: Got Git branches: $($items -join ', ')"}
             }
@@ -396,7 +396,7 @@ function ConfigForm {
     
         foreach ($index in 0..($lines.Count - 1)) {
             $line = $lines[$index]
-            if ($line -ne "" -and $line.Split('¦')[0] -ne "Llama.Cpp-Toolbox" -and $line.Split('¦')[0] -notmatch "config.txt" -and $line.Split('¦')[0] -notmatch "Config-Version" -and $line.Split('¦')[0] -notmatch "help" -and $line.Split('¦')[0] -notmatch "rebuild" -and $line.Split('¦')[0].Trim() -ne "branch") {
+            if ($line -ne "" -and $line.Split('¦')[0] -ne "Llama.Cpp-Toolbox" -and $line.Split('¦')[0] -notmatch "config.txt" -and $line.Split('¦')[0] -notmatch "Config-Version" -and $line.Split('¦')[0] -notmatch "help" -and $line.Split('¦')[0] -notmatch "rebuild" -and $line.Split('¦')[0].Trim() -ne "llama.cpp-branch") {
                 $parts = $line.Split('¦')
                 $labelText = $parts[0].Trim()
                 $controlText = $parts[1].Trim()
@@ -408,7 +408,7 @@ function ConfigForm {
                 $global:formLabels[$index] = $label
                 $panel.Controls.Add($label)
 
-                if ($labelText -match "build|branch") {
+                if ($labelText -match "build|llama.cpp-branch") {
                     $control = New-Object System.Windows.Forms.ComboBox
                     $global:comboBoxes[$index] = $control
                     Get-ComboBoxItems $labelText $global:comboBoxes[$index]
@@ -548,12 +548,12 @@ function DetermineAction($index, $value, $ButtonState) {
             if ($global:cfgValue -eq "") { return "Error" }
             else { return "ToggleVisibility" }
         }
-        "repo" {
+        "llama.cpp-repo" {
             
             if ($global:cfgValue -eq "") { return "Error" }
             else {$global:cfgValue = CleanRepo $global:cfgValue ; return "RepoSet" }
         }
-        "branch" {
+        "llama.cpp-branch" {
             if ($global:cfgValue -eq "") { return "Error" }
             else { 
                 Set-GitBranch $global:cfgValue
@@ -644,10 +644,10 @@ function RefreshBranchComboBox {
     $release_branchIndex = -1
     
     Set-Location $path\llama.cpp
-    $repo = Get-ConfigValue -Key "repo"
+    $repo = Get-ConfigValue -Key "llama.cpp-repo"
     $checkBranch = (git branch --show-current)
     # if checkbranch is null then we are using the tag of a release.
-    if($checkBranch -ne $null){$currentBranch = $checkBranch.Trim()}else{$currentBranch = Get-ConfigValue -Key "branch" }
+    if($checkBranch -ne $null){$currentBranch = $checkBranch.Trim()}else{$currentBranch = Get-ConfigValue -Key "llama.cpp-branch" }
     
     # Find the branch ComboBoxes
     foreach ($index in $global:comboBoxes.Keys) {
@@ -742,7 +742,7 @@ function BranchManager {
                 param($sender, $e)
                 $branchToUpdate = $sender.Parent.Controls[1].Text -replace '^\* ', ''
                 Set-Location $RepoPath
-                $currentBranch = Get-ConfigValue -Key "branch" # get-set the flag for $branch.
+                $currentBranch = Get-ConfigValue -Key "llama.cpp-branch" # get-set the flag for $branch.
                 git checkout $branchToUpdate
                 $log_name = $branchToUpdate -replace "[-/]","_"
                 $gitstatus = Invoke-Expression "git pull"

@@ -40,12 +40,12 @@ $script:defaultConfig = @(
     },
     @{
         "type" = "config"
-        "key" = "repo"
+        "key" = "llama.cpp-repo"
         "value" = "ggml-org/llama.cpp.git"
     },
     @{
         "type" = "config"
-        "key" = "branch"
+        "key" = "llama.cpp-branch"
         "value" = "master"
     },
     @{
@@ -311,6 +311,15 @@ function Update-Config {
 
     if (Test-Path $ConfigPath) {
         $currentConfig = Get-Content $ConfigPath | ConvertFrom-Json
+
+        # Migrate old keys
+        foreach ($entry in $currentConfig) {
+            if ($entry.type -eq "config") {
+                if ($entry.key -eq "repo") { $entry.key = "llama.cpp-repo" }
+                if ($entry.key -eq "branch") { $entry.key = "llama.cpp-branch" }
+            }
+        }
+
         $existingKeys = @{}
         foreach ($entry in $currentConfig) {
             $key = if ($entry.type -eq "config") { $entry.key } else { $entry.command }

@@ -384,7 +384,7 @@ function UpdateLlama {
         $label3.Text = "Update completed, set a new branch to build."
         }
     Else {$label3.Text = "No changes to llama.cpp detected."}
-    $branch = Get-ConfigValue -Key "branch" # get the value for $branch.
+    $branch = Get-ConfigValue -Key "llama.cpp-branch" # get the value for $branch.
     git checkout $branch # Return to expected branch.
 }
 
@@ -481,7 +481,7 @@ function Update-Log ($gitstatus,$log_name){
 
 # Change the branch to use, $branch is set when changed in ConfigForm.
 function Set-GitBranch ($branch) {
-    Set-ConfigValue -Key "branch" -Value $branch.Trim() # set the value for $branch.
+    Set-ConfigValue -Key "llama.cpp-branch" -Value $branch.Trim() # set the value for $branch.
     git submodule deinit -f --all
     git checkout $branch # Change branch using Git.
     git reset --hard $branch # Remove changes from other repo/branch.
@@ -493,7 +493,7 @@ function Set-GitBranch ($branch) {
 # Change the repo to use, $repo is set when changed in ConfigForm.
 function Set-GitRepo ($repo) {
     cd $path\llama.cpp
-    Set-ConfigValue -Key "repo" -Value $repo.Trim() #  # set the value for $repo.
+    Set-ConfigValue -Key "llama.cpp-repo" -Value $repo.Trim() #  # set the value for $repo.
     git remote set-url origin https://github.com/$repo # Change repo using Git.
     $fetch = Invoke-Expression "git fetch" # Check for any changes using Git.
     git submodule deinit -f --all
