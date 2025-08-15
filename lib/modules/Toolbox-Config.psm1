@@ -310,18 +310,21 @@ function Update-Config {
     if (Test-Path $ConfigPath) {cp "$path\lib\settings\config.json" "$path\lib\settings\bak.config.json"}
 
     if (Test-Path $ConfigPath) {
-        $currentConfig = Get-Content $ConfigPath | ConvertFrom-Json
+        $currentConfig = @(Get-Content $ConfigPath | ConvertFrom-Json)
 
-        # Migrate old keys
-        foreach ($entry in $currentConfig) {
-            if ($entry.type -eq "config") {
-                if ($entry.key -eq "repo") { $entry.key = "llama.cpp-repo" }
-                if ($entry.key -eq "branch") { $entry.key = "llama.cpp-branch" }
+        # Step 1: Migrate keys
+        $migratedConfig = foreach($entry in $currentConfig) {
+            $newEntry = $entry.PSObject.Copy()
+            if ($newEntry.PSObject.Properties['type'].Value -eq 'config') {
+                if ($newEntry.PSObject.Properties['key'].Value -eq 'repo') { $newEntry.key = 'llama.cpp-repo' }
+                if ($newEntry.PSObject.Properties['key'].Value -eq 'branch') { $newEntry.key = 'llama.cpp-branch' }
             }
+            $newEntry # This outputs the object to the pipeline, collecting it in $migratedConfig
         }
 
+        # Step 2: Add missing keys
         $existingKeys = @{}
-        foreach ($entry in $currentConfig) {
+        foreach ($entry in $migratedConfig) {
             $key = if ($entry.type -eq "config") { $entry.key } else { $entry.command }
             $existingKeys[$key] = $true
         }
@@ -350,11 +353,12 @@ function Update-Config {
                         # fallback to default value is already in $defaultEntry
                     }
                 }
-                $currentConfig += $defaultEntry
+                $migratedConfig += $defaultEntry
             }
         }
         
-        $currentConfig | ConvertTo-Json -Depth 10 | Set-Content $ConfigPath
+        # Step 3: Save
+        $migratedConfig | ConvertTo-Json -Depth 10 | Set-Content $ConfigPath
     }
     else {
         Restore-Config -ConfigPath $ConfigPath
@@ -379,7 +383,7 @@ function Get-ConfigLines {
     $lines = [System.Collections.ArrayList]::new()
     
     if (Test-Path $ConfigPath) {
-        $config = Get-Content $ConfigPath | ConvertFrom-Json
+        $config = @(Get-Content $ConfigPath | ConvertFrom-Json)
         
         foreach ($entry in $config) {
             if ($entry.type -eq "config") {
@@ -407,7 +411,7 @@ function Get-ConfigValue {
     )
     
     if (Test-Path $ConfigPath) {
-        $config = Get-Content $ConfigPath | ConvertFrom-Json
+        $config = @(Get-Content $ConfigPath | ConvertFrom-Json)
         $configEntry = $config | Where-Object { $_.type -eq "config" -and $_.key -eq $Key } | Select-Object -First 1
         if ($configEntry) {
             return $configEntry.value
@@ -427,7 +431,7 @@ function Set-ConfigValue {
     )
     
     if (Test-Path $ConfigPath) {
-        $config = Get-Content $ConfigPath | ConvertFrom-Json
+        $config = @(Get-Content $ConfigPath | ConvertFrom-Json)
         $configEntry = $config | Where-Object { $_.type -eq "config" -and $_.key -eq $Key } | Select-Object -First 1
         if ($configEntry) {
             $configEntry.value = $Value
@@ -461,7 +465,7 @@ function Set-CommandValue {
     )
     
     if (Test-Path $ConfigPath) {
-        $config = Get-Content $ConfigPath | ConvertFrom-Json
+        $config = @(Get-Content $ConfigPath | ConvertFrom-Json)
         $configEntry = $config | Where-Object { $_.type -eq "command" -and $_.visibility -eq $Visibility -and $_.command -eq $LastValue } | Select-Object -First 1
         if ($configEntry) {
             $configEntry.command = $Value
@@ -495,7 +499,7 @@ function Set-CommandVisibility {
     )
     $LastVisibility = if ($Visibility -eq "show") {"hide"}else{"show"}
     if (Test-Path $ConfigPath) {
-        $config = Get-Content $ConfigPath | ConvertFrom-Json
+        $config = @(Get-Content $ConfigPath | ConvertFrom-Json)
         $commandEntry = $config | Where-Object { $_.type -eq "command" -and $_.command -eq $Command } | Select-Object -First 1
         if ($commandEntry) {
             $commandEntry.visibility = $Visibility
@@ -519,7 +523,7 @@ function Get-CommandValues {
     )
     
     if (Test-Path $ConfigPath) {
-        $config = Get-Content $ConfigPath | ConvertFrom-Json
+        $config = @(Get-Content $ConfigPath | ConvertFrom-Json)
         
         # Filter for command entries that are set to "show" and return just the command text
         $requestedCommands = $config | 
