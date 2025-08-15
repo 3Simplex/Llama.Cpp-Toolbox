@@ -272,6 +272,67 @@ function ggufDump ($selectedModel, $option, $print) {
     }else{$label3.Text = "Failed...";$TextBox2.Text = "You must select a .gguf model to process."}
 }
 
+function Get-PackageInfo {
+    Set-Location -Path $path
+    # Activate venv
+    .\venv\Scripts\activate
+
+    $packages = @()
+    $requirementsPath = "$path\llama.cpp\requirements.txt"
+
+    if (Test-Path $requirementsPath) {
+        $packageNames = Get-Content $requirementsPath | ForEach-Object { ($_ -split '==|>=|<=|<|>|~=')[0].Trim() }
+
+        foreach ($packageName in $packageNames) {
+            # Get current version
+            $currentVersion = (pip show $packageName | Select-String "Version") -replace "Version: ", ""
+
+            # Get available versions
+            $availableVersionsOutput = pip index versions $packageName
+            $availableVersions = ($availableVersionsOutput | Select-String "Available versions:") -replace "Available versions: ", ""
+            $availableVersions = $availableVersions.Split(', ')
+
+            $packageInfo = [PSCustomObject]@{
+                Name              = $packageName
+                Version           = $currentVersion
+                AvailableVersions = $availableVersions
+            }
+            $packages += $packageInfo
+        }
+    }
+    else {
+        [System.Windows.Forms.MessageBox]::Show("Could not find requirements.txt at $requirementsPath")
+    }
+
+    # Deactivate venv
+    deactivate
+    return $packages
+}
+
+function Update-Package {
+    param(
+        [string]$PackageName,
+        [string]$Version
+    )
+
+    Set-Location -Path $path
+    # Activate venv
+    .\venv\Scripts\activate
+
+    $command = "pip install --upgrade $($PackageName)==$($Version)"
+
+    try {
+        Invoke-Expression -Command $command
+        [System.Windows.Forms.MessageBox]::Show("Successfully updated $PackageName to version $Version.")
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("Failed to update $PackageName. Error: $_")
+    }
+
+    # Deactivate venv
+    deactivate
+}
+
 # Update Toolbox if updates found in repo.
 function UpdateToolbox {
     cd $path

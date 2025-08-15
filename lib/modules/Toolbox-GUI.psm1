@@ -327,9 +327,16 @@ function ConfigForm {
     $bmButton.Add_Click({BranchManager})
     if($global:debug){Write-Host "Debug: Created Branch Manager button"}
 
+    # Create a ToolStripButton for PackageManager
+    $pmButton = New-Object System.Windows.Forms.ToolStripButton
+    $pmButton.Text = "Package Manager"
+    $pmButton.Add_Click({PackageManager})
+    if($global:debug){Write-Host "Debug: Created Package Manager button"}
+
     # Add buttons to the ToolStrip
     $toolStrip.Items.Add($bmButton)
-    if($global:debug){Write-Host "Debug: Added Branch Manager button to toolStrip"}
+    $toolStrip.Items.Add($pmButton)
+    if($global:debug){Write-Host "Debug: Added Branch Manager and Package Manager buttons to toolStrip"}
 
     # Get the config lines from config.json
     function RefreshConfigLines {
@@ -761,6 +768,81 @@ function BranchManager {
     BranchPanel
     $BMform.ShowDialog()
     
+}
+
+function PackageManager {
+    $PMform = New-Object System.Windows.Forms.Form
+    $PMform.Text = "Package Manager"
+    $PMform.Size = New-Object System.Drawing.Size(535, 300)
+    $PMform.StartPosition = "CenterScreen"
+
+    $PMpanel = New-Object System.Windows.Forms.FlowLayoutPanel
+    $PMpanel.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $PMpanel.FlowDirection = [System.Windows.Forms.FlowDirection]::TopDown
+    $PMpanel.WrapContents = $false
+    $PMpanel.AutoScroll = $true
+
+    function PackagePanel {
+        $PMpanel.Controls.Clear()
+
+        # This function will be implemented in Toolbox-Functions.psm1
+        $packages = Get-PackageInfo
+
+        foreach ($package in $packages) {
+            $rowPanel = New-Object System.Windows.Forms.FlowLayoutPanel
+            $rowPanel.FlowDirection = [System.Windows.Forms.FlowDirection]::LeftToRight
+            $rowPanel.Width = 519
+            $rowPanel.Height = 30
+            $rowPanel.Margin = New-Object System.Windows.Forms.Padding(0, 0, 0, 5)
+
+            $nameLabel = New-Object System.Windows.Forms.Label
+            $nameLabel.Text = $package.Name
+            $nameLabel.Width = 150
+            $nameLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+            $rowPanel.Controls.Add($nameLabel)
+
+            $versionLabel = New-Object System.Windows.Forms.Label
+            $versionLabel.Text = "Current: " + $package.Version
+            $versionLabel.Width = 120
+            $versionLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+            $rowPanel.Controls.Add($versionLabel)
+
+            $versionComboBox = New-Object System.Windows.Forms.ComboBox
+            $versionComboBox.Width = 120
+            # Populate with available versions
+            if ($package.AvailableVersions) {
+                foreach ($availableVersion in $package.AvailableVersions) {
+                    $versionComboBox.Items.Add($availableVersion)
+                }
+            }
+            $versionComboBox.SelectedItem = $package.Version
+            $rowPanel.Controls.Add($versionComboBox)
+
+            $updateButton = New-Object System.Windows.Forms.Button
+            $updateButton.Text = "Update"
+            $updateButton.Width = 100
+            $updateButton.Add_Click({
+                param($sender, $e)
+                $packageName = $sender.Parent.Controls[0].Text
+                $selectedVersion = $sender.Parent.Controls[2].Text
+
+                $result = [System.Windows.Forms.MessageBox]::Show("Are you sure you want to update '$packageName' to version '$selectedVersion'?", "Confirm Update", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    Update-Package -PackageName $packageName -Version $selectedVersion
+                    # Refresh the panel
+                    PackagePanel
+                }
+            })
+            $rowPanel.Controls.Add($updateButton)
+
+            $PMpanel.Controls.Add($rowPanel)
+        }
+    }
+
+    $PMform.Controls.Add($PMpanel)
+
+    PackagePanel
+    $PMform.ShowDialog()
 }
 
 Export-ModuleMember -Function * -Variable * -Alias *
