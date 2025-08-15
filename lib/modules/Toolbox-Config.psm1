@@ -15,6 +15,16 @@ $script:defaultConfig = @(
     },
     @{
         "type" = "config"
+        "key" = "Toolbox-Repo"
+        "value" = "3Simplex/Llama.Cpp-Toolbox"
+    },
+    @{
+        "type" = "config"
+        "key" = "Toolbox-Branch"
+        "value" = "main"
+    },
+    @{
+        "type" = "config"
         "key" = "Config-Version"
         "value" = $global:version_cfg
     },

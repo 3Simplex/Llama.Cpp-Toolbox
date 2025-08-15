@@ -336,17 +336,34 @@ function Update-Package {
 # Update Toolbox if updates found in repo.
 function UpdateToolbox {
     cd $path
-    $fetch = Invoke-Expression "git fetch" # Check for any updates using Git.
-    $gitstatus = Invoke-Expression "git status"
+    $toolboxRepo = Get-ConfigValue -Key "Toolbox-Repo"
+    $toolboxBranch = Get-ConfigValue -Key "Toolbox-Branch"
+
+    # Ensure the remote is pointing to the correct repository
+    git remote set-url origin https://github.com/$toolboxRepo
+
+    # Fetch updates from the specified remote
+    $fetch = Invoke-Expression "git fetch origin"
+
+    # Check the status of the local branch against the remote branch
+    $gitstatus = Invoke-Expression "git status -uno"
+
     $TextBox2.Text = $gitstatus
-    If ($gitstatus -match "pull") {# If updates exist get and build them.
+
+    if ($gitstatus -match "Your branch is behind") {
         $label3.Text = "Updating..."
-        $log_name = "Toolbox" # Send this to Log-GitUpdate for the file name.
-        $gitstatus = Invoke-Expression "git pull"
-        Update-Log $gitstatus $log_name
+        $log_name = "Toolbox"
+
+        # Pull the changes from the specified branch
+        $gitpullstatus = Invoke-Expression "git pull origin $toolboxBranch"
+        Update-Log $gitpullstatus $log_name
+
+        # Restart the application to apply the update
         Start-Process PowerShell -ArgumentList $path\LlamaCpp-Toolbox.ps1; [Environment]::Exit(1)
-        }
-    Else {$label3.Text = "No changes to Toolbox detected."}
+    }
+    else {
+        $label3.Text = "No new updates to Toolbox detected on branch '$toolboxBranch'."
+    }
 }
 
 # Update Llama.cpp if repo is changed or if updates found in repo.
@@ -484,6 +501,22 @@ function Set-GitRepo ($repo) {
     git submodule update --init --recursive
     UpdateLlama
     $label3.Text = "Repo changed, remember to rebuild..."
+}
+
+function Set-ToolboxGitRepo ($repo) {
+    cd $path
+    Set-ConfigValue -Key "Toolbox-Repo" -Value $repo.Trim()
+    git remote set-url origin https://github.com/$repo
+    git fetch
+    $label3.Text = "Toolbox repo changed."
+}
+
+function Set-ToolboxGitBranch ($branch) {
+    cd $path
+    Set-ConfigValue -Key "Toolbox-Branch" -Value $branch.Trim()
+    git checkout $branch
+    git pull
+    $label3.Text = "Toolbox branch changed."
 }
 
 # Llama.Cpp releases use "b####" tags.

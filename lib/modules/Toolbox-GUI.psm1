@@ -396,7 +396,7 @@ function ConfigForm {
     
         foreach ($index in 0..($lines.Count - 1)) {
             $line = $lines[$index]
-            if ($line -ne "" -and $line.Split('¦')[0] -notmatch "Toolbox" -and $line.Split('¦')[0] -notmatch "config.txt" -and $line.Split('¦')[0] -notmatch "Config-Version" -and $line.Split('¦')[0] -notmatch "help" -and $line.Split('¦')[0] -notmatch "rebuild" -and $line.Split('¦')[0].Trim() -ne "branch") {
+            if ($line -ne "" -and $line.Split('¦')[0] -ne "Llama.Cpp-Toolbox" -and $line.Split('¦')[0] -notmatch "config.txt" -and $line.Split('¦')[0] -notmatch "Config-Version" -and $line.Split('¦')[0] -notmatch "help" -and $line.Split('¦')[0] -notmatch "rebuild" -and $line.Split('¦')[0].Trim() -ne "branch") {
                 $parts = $line.Split('¦')
                 $labelText = $parts[0].Trim()
                 $controlText = $parts[1].Trim()
@@ -577,6 +577,14 @@ function DetermineAction($index, $value, $ButtonState) {
                 if ($BuildTest -ne $false){ Set-ConfigValue -Key $global:cfg -Value $value ; return "BuildLlama" } else { "Error" }
             }
         }
+        "Toolbox-Repo" {
+            if ($global:cfgValue -eq "") { return "Error" }
+            else { return "ToolboxRepoSet" }
+        }
+        "Toolbox-Branch" {
+            if ($global:cfgValue -eq "") { return "Error" }
+            else { return "ToolboxBranchSet" }
+        }
         default {
             if ($global:cfgValue -eq "") { return "Error" }
             else { return "DefaultAction" }
@@ -599,6 +607,14 @@ function PerformAction($action, $value) {
             Set-GitRepo $global:cfgValue
             RefreshBranchComboBox
             [System.Windows.Forms.MessageBox]::Show("The repo for Llama.Cpp has been changed, you must set the branch to be built.")
+        }
+        "ToolboxRepoSet" {
+            Set-ToolboxGitRepo $global:cfgValue
+            [System.Windows.Forms.MessageBox]::Show("The repo for the Toolbox has been changed. Please restart the application for the changes to take effect.")
+        }
+        "ToolboxBranchSet" {
+            Set-ToolboxGitBranch $global:cfgValue
+            [System.Windows.Forms.MessageBox]::Show("The branch for the Toolbox has been changed. Please restart the application for the changes to take effect.")
         }
         "BuildLlama" { 
             Set-ConfigValue -Key "rebuild" -Value "True"
