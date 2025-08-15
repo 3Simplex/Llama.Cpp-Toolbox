@@ -311,69 +311,41 @@ function Update-Config {
 
     if (Test-Path $ConfigPath) {
         $currentConfig = Get-Content $ConfigPath | ConvertFrom-Json
-        $defaultEntryOrder = @{}
-        $currentEntryOrder = @{}
-        
-        # Create index of default order
-        for ($i = 0; $i -lt $script:defaultConfig.Count; $i++) {
-            $defaultEntry = $script:defaultConfig[$i]
-            $key = if ($defaultEntry.type -eq "config") { $defaultEntry.key } else { $defaultEntry.command }
-            $defaultEntryOrder[$key] = $i
-        }
-        
-        # Create index of current order and entries
-        for ($i = 0; $i -lt $currentConfig.Count; $i++) {
-            $entry = $currentConfig[$i]
-            $key = if ($entry.type -eq "config") { $entry.key } else { $entry.command }
-            $currentEntryOrder[$key] = $i
-        }
-        
-        # Create new config array
-        $newConfig = @()
-        $processedKeys = @{}
-        
-        # First, add all existing entries in their current order
+        $existingKeys = @{}
         foreach ($entry in $currentConfig) {
             $key = if ($entry.type -eq "config") { $entry.key } else { $entry.command }
-            $newConfig += $entry
-            $processedKeys[$key] = $true
+            $existingKeys[$key] = $true
         }
-        
-        # Then, add new entries from defaultConfig in their specified order
+
         foreach ($defaultEntry in $script:defaultConfig) {
             $key = if ($defaultEntry.type -eq "config") { $defaultEntry.key } else { $defaultEntry.command }
-            
-            if (-not $processedKeys.ContainsKey($key)) {
-                # Find the correct position to insert the new entry
-                $insertIndex = $newConfig.Count
-                
-                # Look for the next known entry in defaultConfig to determine insertion point
-                for ($i = [array]::IndexOf($script:defaultConfig, $defaultEntry) + 1; $i -lt $script:defaultConfig.Count; $i++) {
-                    $nextKey = if ($script:defaultConfig[$i].type -eq "config") { 
-                        $script:defaultConfig[$i].key 
-                    } else { 
-                        $script:defaultConfig[$i].command 
+            if (-not $existingKeys.ContainsKey($key)) {
+                if ($key -eq "Toolbox-Repo") {
+                    try {
+                        cd $path
+                        $repoUrl = git remote get-url origin
+                        $repo = ($repoUrl -split "github.com/")[-1] -replace ".git", ""
+                        $defaultEntry.value = $repo
                     }
-                    
-                    if ($currentEntryOrder.ContainsKey($nextKey)) {
-                        $insertIndex = $currentEntryOrder[$nextKey]
-                        break
+                    catch {
+                        # fallback to default value is already in $defaultEntry
                     }
                 }
-                
-                # Insert the new entry
-                $newConfig = $newConfig[0..($insertIndex-1)] + $defaultEntry + $newConfig[$insertIndex..($newConfig.Count-1)]
-                
-                # Update current entry orders
-                for ($i = $insertIndex; $i -lt $newConfig.Count; $i++) {
-                    $updateKey = if ($newConfig[$i].type -eq "config") { $newConfig[$i].key } else { $newConfig[$i].command }
-                    $currentEntryOrder[$updateKey] = $i
+                if ($key -eq "Toolbox-Branch") {
+                    try {
+                        cd $path
+                        $branch = git branch --show-current
+                        $defaultEntry.value = $branch.Trim()
+                    }
+                    catch {
+                        # fallback to default value is already in $defaultEntry
+                    }
                 }
+                $currentConfig += $defaultEntry
             }
         }
         
-        # Save the updated config
-        $newConfig | ConvertTo-Json -Depth 10 | Set-Content $ConfigPath
+        $currentConfig | ConvertTo-Json -Depth 10 | Set-Content $ConfigPath
     }
     else {
         Restore-Config -ConfigPath $ConfigPath
