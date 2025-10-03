@@ -5,7 +5,7 @@ Llama.Cpp-Toolbox is a PowerShell GUI interface, designed to streamline your wor
 
 The main window includes functionality allowing you to clone models using git and keep them updated, convert and quantize them, inspect gguf metadata, as well as aditional functionality.  
 
-<img width="733" height="691" alt="Llama cpp-Toolbox-version-0.30.0-GUI" src="https://github.com/user-attachments/assets/aaa0e91e-1ae4-46be-a736-256899827533" />
+<img width="734" height="688" alt="image" src="https://github.com/user-attachments/assets/b6d1a365-d2b8-4eae-b9bb-11d8d21ca987" />
 
 
 ## Functionality Overview:
@@ -14,6 +14,7 @@ The main window includes functionality allowing you to clone models using git an
   - This menu item will open the config form that will allow you to manage Toolbox options and llama.cpp branches.
   - Select the release or dev branch you wish to build, all package requirements will be set as needed.
   - You may edit and show or hide options for the task list menu.
+<img width="736" height="482" alt="image" src="https://github.com/user-attachments/assets/0a83b6eb-7b1a-4513-9805-59c9965991ee" />
 
 #### Main Menu > Process Manager
   - This menu item will open the Process Manager that will allow you to manage running models.

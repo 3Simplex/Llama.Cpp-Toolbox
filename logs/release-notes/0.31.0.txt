@@ -1,0 +1,12 @@
+Version 0.31.0
+
+This commit significantly improves the installation process and streamlines the development setup.
+
+New in this merge:
+- Support CURL
+- Auto launch in developer console. *Required for llama.cpp build process.
+Changes:
+- Improved Install Logic: Refactored the installation script for better reliability and maintainability.
+- VS Tools Integration: Automatically detects and loads the Visual Studio developer console if available, simplifying build and development.
+- Windows Curl Installation: Installs Curl for Windows, providing required tooling.
+- Removed unnecessary build flag: Removed `-DLLAMA_CURL=OFF` build flag, as curl is now a dependency.

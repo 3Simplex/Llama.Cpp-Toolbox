@@ -1,0 +1,18 @@
+-----
+Version 0.32.0 - 2025-08-30
+
+### Added
+*   **ROADMAP.md:** Introduced a new project roadmap document (`ROADMAP.md`) at the project root to outline the long-term vision, near-term, and mid-term goals for the LlamaCpp-Toolbox. This document serves as a high-level guide for future development and strategic direction. (`Project Root`)
+
+### Changed
+*   No significant changes to existing functionality in this release.
+
+### Fixed
+*   No bug fixes in this release.
+
+### Removed
+*   No features removed in this release.
+
+### Security
+*   No security-related changes in this release.
+-----

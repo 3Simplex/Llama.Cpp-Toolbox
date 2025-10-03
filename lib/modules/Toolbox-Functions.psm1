@@ -2,7 +2,7 @@
 # Contains the functions.
 
 # Toolbox-Functions version
-$global:version_func = "0.2.6"
+$global:version_func = "0.2.7"
 
 # Check the version, run UpdateConfig if needed.
 function VersionCheck {
@@ -313,32 +313,54 @@ function UpdateLlama {
 # Ensure expected packages are installed and ready.
 function UpdatePackages {
     Set-Location -Path $path
-    python -m venv venv
+    
+    # Forcefully get the full path to the python executable managed by pyenv.
+    # This bypasses any ambiguity in the system PATH.
+    $pythonExecutable = pyenv which python
+    if ($null -eq $pythonExecutable -or -not (Test-Path $pythonExecutable)) {
+        Write-Error "Could not find the python executable managed by pyenv. The script cannot continue."
+        Read-Host "Press Enter to exit."
+        Exit
+    }
+    
+    Write-Host "Creating virtual environment with: $pythonExecutable" -ForegroundColor Green
+    
+    # Create the venv using the explicit, correct python version.
+    & $pythonExecutable -m venv venv
+    
+    # Activate the new venv and install all packages into it.
     .\venv\Scripts\activate
     python.exe -m pip install --upgrade pip
-    python -m pip install -r $path\llama.cpp\requirements.txt
+    python.exe -m pip install cmake
+    python.exe -m pip install -r $path\llama.cpp\requirements.txt
+    
     pyenv rehash
     deactivate
 }
 
 # Install Llama.Cpp for the toolbox on first run.
 function InstallLlama {
-    Read-Host "Installing llama.cpp, any key to continue"
+    Write-Host "Installing llama.cpp, please wait..." -ForegroundColor Cyan
     Set-Location -Path $path
-    mkdir $path\Converted
+    if (-not (Test-Path "$path\Converted")) { mkdir $path\Converted }
     git clone --progress --recurse-submodules https://github.com/ggml-org/llama.cpp.git
-    pyenv local 3.11
-    pip install cmake
+    
+    # Ensure pyenv uses the correct local version before we do anything with Python.
+    pyenv local 3.10.11
     pyenv rehash
+    
     UpdatePackages
-    Update-Config
-    Set-ConfigValue -Key "rebuild" -Value "True" # set the value for $rebuild.
+    
+    Update-Config # Create the config file
+    Set-ConfigValue -Key "rebuild" -Value "True"
     Set-Location -Path $path\llama.cpp
     $branch = Get-NewRelease # Get the latest release version.
     Set-GitBranch $branch # Set the cfg to this branch then build it.
-    $global:firstRun = "True"
-    Main # Everything is ready to start the GUI.
+    
+    # Set the flag for the main script, but DO NOT call Main here.
+    $global:firstRun = "True" 
 }
+
 
 # Build Llama as needed.
 function BuildLlama {
@@ -354,8 +376,10 @@ function BuildLlama {
     }
 
     Set-Location $path\llama.cpp
-
-    $cmakeArgs1 = "-B .\build $buildFlag -DGGML_NATIVE=ON -DLLAMA_CURL=OFF"
+	# Added -DLLAMA_CURL=ON to explicitly enable the feature.
+    # Added -DCMAKE_TOOLCHAIN_FILE to point CMake to the vcpkg installation, allowing it to find CURL.
+    $vcpkgToolchainFile = "$path\vcpkg\scripts\buildsystems\vcpkg.cmake"
+    $cmakeArgs1 = "-B .\build $buildFlag -DGGML_NATIVE=ON -DLLAMA_CURL=ON -DCMAKE_TOOLCHAIN_FILE=$vcpkgToolchainFile"
     $cmakeArgs2 = "--build build --config Release -j $NumberOfCores"
 
     Write-Warning "Running CMake configure"
