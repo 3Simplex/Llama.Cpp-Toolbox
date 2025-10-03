@@ -126,7 +126,7 @@ $main_form.Controls.Add($Label2)
 # Label to display Status
 $Label3 = New-Object System.Windows.Forms.Label
 $Label3.Text = ""
-$Label3.Location  = New-Object System.Drawing.Point(40,262)
+$Label3.Location  = New-Object System.Drawing.Point(50,262)
 $Label3.AutoSize = $true
 $main_form.Controls.Add($Label3)
 
