@@ -86,6 +86,16 @@ $script:defaultConfig = @(
     @{
         "type" = "command"
         "visibility" = "show"
+        "command" = "llama-server 8080 --top-k 1 --n-predict 128 --reasoning-budget 0  --threads -1 --jinja --flash-attn auto --cache-type-k q8_0 --cache-type-v q8_0"
+    },
+        @{
+        "type" = "command"
+        "visibility" = "show"
+        "command" = "llama-server 8080 --top-k 40 --n-predict -1 --reasoning-budget -1  --threads -1 --jinja --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0"
+    },
+    @{
+        "type" = "command"
+        "visibility" = "show"
         "command" = "llama-cvector-generator -c 2048 -ngl 10 --positive-file `"$path\llama.cpp\examples\cvector-generator\positive.txt`" --negative-file `"$path\llama.cpp\examples\cvector-generator\negative.txt`""
     },
     @{
