@@ -120,11 +120,17 @@ function Install-Ccache {
     Write-Host "Installing ccache for faster compilation..." -ForegroundColor Cyan
     try {
         winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
-        if (Get-Command ccache -ErrorAction SilentlyContinue) { Write-Host "ccache successfully installed." -ForegroundColor Green }
-        else { throw "ccache command not found after install. A manual restart might be required." }
+        if (Get-Command ccache -ErrorAction SilentlyContinue) {
+            Write-Host "ccache successfully installed." -ForegroundColor Green
+        }
+        else {
+             Write-Warning "ccache may have been installed, but the 'ccache' command is not available in the current session. A new terminal window may be required to use it in the future. Continuing without ccache."
+        }
     }
     catch {
-        Write-Error "An error occurred during ccache installation: $_"; Read-Host "Press Enter to continue."
+        Write-Warning "Could not automatically install 'ccache'. This is an optional tool to speed up compilations and is not required for the toolbox to function."
+        Write-Warning "This can sometimes happen on a new PC if 'winget' sources are out of date. You can try running 'winget source update' in a separate terminal and then restart this script if you still wish to install ccache."
+        Read-Host "Press Enter to continue."
     }
 }
 
