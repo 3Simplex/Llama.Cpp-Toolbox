@@ -129,7 +129,11 @@ function PreReqs {
     $setupComplete = $false
     while (-not $setupComplete) {
         if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-            Write-Warning "Git is not found."; Read-Host "Press Enter to install Git, then close this window and re-run the script."; winget install --id Git.Git -e; Exit
+            Write-Warning "Git is not found."; Read-Host "Press Enter to install Git. The script will restart automatically."
+            winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
+            Write-Host "Relaunching in a new developer console..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
+            $devCmdPath = Find-VsDevCmd
+            $currentScript = $PSCommandPath; $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
         }
         if (-not (Get-Command pyenv -ErrorAction SilentlyContinue)) {
             Write-Warning "pyenv-win is not found."; Read-Host "Press Enter to install pyenv-win. The script will restart automatically."
@@ -160,7 +164,12 @@ function Main {
     if ($path -notmatch "[/\\]Llama\.Cpp-Toolbox$") {
         Write-Host "Bootstrapping: Script is not in the 'Llama.Cpp-Toolbox' directory." -ForegroundColor Yellow
         if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-            Write-Warning "Git is required to download the toolbox."; Read-Host "Press Enter to install Git, then re-run this script."; winget install --id Git.Git -e; Exit
+            Write-Warning "Git is required to download the toolbox."; Read-Host "Press Enter to install Git. The script will restart to continue."
+            winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
+            $currentScript = $PSCommandPath
+            $cmdArgs = "-NoProfile -NoExit -File ""$currentScript"" "
+            Start-Process powershell.exe -ArgumentList $cmdArgs
+            Exit
         }
         Write-Host "Cloning the repository..."
         git clone https://github.com/3Simplex/Llama.Cpp-Toolbox.git
