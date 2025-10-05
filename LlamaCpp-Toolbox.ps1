@@ -8,10 +8,10 @@ $global:version = "0.31.0"
 #$global:debug = $true
 
 # The directory where LlamaCpp-Toolbox.ps1 is initialized.
-$global:path = $PSScriptRoot 
+$global:path = $PSScriptRoot
 
 # Ensure we are starting on the right path.
-Set-Location $path 
+Set-Location $path
 
 ### --- Environment PATH Fix --- ###
 # Relaunching into a dev console can sometimes fail to inherit the full user PATH.
@@ -24,7 +24,7 @@ try {
     # Combine the existing path with the machine, user, and winget paths.
     $existingPath = $env:PATH.Split(';')
     $fullPath = ($existingPath + $machinePath.Split(';') + $userPath.Split(';') + $wingetPath) | Select-Object -Unique
-    
+
     # Reassemble and set the new PATH
     $env:PATH = $fullPath -join ';'
     Write-Host "Successfully reconstructed environment PATH to find external tools." -ForegroundColor DarkGreen
@@ -43,9 +43,9 @@ function Find-VsDevCmd {
             Write-Warning "vswhere.exe not found. Cannot locate Visual Studio."
             return $null
         }
-        
-        $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-        
+
+        $vsPath = & $vswhere -latest -prerelease -version '[16.0,)' -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+
         if ($vsPath) {
             $devCmdPath = Join-Path $vsPath "Common7\Tools\VsDevCmd.bat"
             if (Test-Path $devCmdPath) {
@@ -63,17 +63,17 @@ function Find-VsDevCmd {
 # --- Environment Setup: Ensure we are running in a VS Developer Shell ---
 if (-not $env:VSCMD_ARG_TGT_ARCH) {
     Write-Host "Not in a developer environment. Relaunching..." -ForegroundColor Yellow
-    
+
     $devCmdPath = Find-VsDevCmd
-    
+
     if (-not $devCmdPath) {
         Write-Error "Visual Studio 2019 or newer with the 'Desktop development with C++' workload is required."
         Add-Type -AssemblyName System.Windows.Forms
-        [System.Windows.Forms.MessageBox]::Show("Could not find a valid Visual Studio C++ environment.`n`nPlease install 'Visual Studio Build Tools 2022' (or Community/Pro/Enterprise).`n`nIMPORTANT: During installation, you MUST select the 'Desktop development with C++' workload.`n`nAfter installation, please run this script again.", "Prerequisite Missing", "OK", "Error")
+        [System.Windows.Forms.MessageBox]::Show("Could not find a valid Visual Studio C++ environment.`n`nPlease install 'Visual Studio Build Tools (2019 or newer)' (or Community/Pro/Enterprise).`n`nIMPORTANT: During installation, you MUST select the 'Desktop development with C++' workload.`n`nAfter installation, please run this script again.", "Prerequisite Missing", "OK", "Error")
         Start-Process "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
         Exit
     }
-    
+
     $currentScript = $PSCommandPath
     $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" "" "
     Start-Process cmd.exe -ArgumentList $cmdArgs
@@ -82,8 +82,8 @@ if (-not $env:VSCMD_ARG_TGT_ARCH) {
 # --- End of Environment Setup ---
 
 # Define global paths and settings
-$global:models = "$path\llama.cpp\models" 
-$global:NumberOfCores = [Environment]::ProcessorCount / 2 
+$global:models = "$path\llama.cpp\models"
+$global:NumberOfCores = [Environment]::ProcessorCount / 2
 
 ### Function to install vcpkg and curl ###
 function Install-VcpkgAndCurl {
@@ -92,7 +92,7 @@ function Install-VcpkgAndCurl {
     try {
         if (-not (Test-Path $vcpkgDir)) { git clone https://github.com/microsoft/vcpkg.git $vcpkgDir }
         if (-not (Test-Path "$vcpkgDir\vcpkg.exe")) { & "$vcpkgDir\bootstrap-vcpkg.bat" -disableMetrics }
-        
+
         Write-Host "Installing curl via vcpkg. EXPECT A LONG WAIT." -ForegroundColor Yellow
         $originalPath = $env:PATH
         $env:PATH = ($env:PATH.Split(';') | Where-Object { $_ -notlike '*pyenv*' }) -join ';'
@@ -186,12 +186,12 @@ function Main {
         Read-Host "Press Enter to exit."
         Exit
     }
-    
+
     # Proceed with normal startup.
     PreReqs
 
     # Load modules now that all prerequisites are confirmed.
-    Import-Module $path\lib\modules\Toolbox-Config.psm1 
+    Import-Module $path\lib\modules\Toolbox-Config.psm1
     Import-Module $path\lib\modules\Llama-Chat.psm1
     Import-Module $path\lib\modules\Toolbox-Functions.psm1
     Import-Module $path\lib\modules\Toolbox-GUI.psm1
@@ -203,7 +203,7 @@ function Main {
 
     # If the llama.cpp directory is missing, install it.
     if (-not (Test-Path "$path\llama.cpp")) {
-        Write-Warning "The llama.cpp directory is missing. Installing it now..."; InstallLlama; $global:firstRun = "True" 
+        Write-Warning "The llama.cpp directory is missing. Installing it now..."; InstallLlama; $global:firstRun = "True"
     }
 
     # Populate the GUI with the latest info.
