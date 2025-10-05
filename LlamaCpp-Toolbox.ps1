@@ -188,7 +188,8 @@ function Main {
             Write-Error "Failed to clone repository."; Read-Host "Press Enter to exit."; Exit
         }
         $devCmdPath = Find-VsDevCmd
-        $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$newScriptPath"" "" "
+        $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+        $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$newScriptPath"" $branchArg "" "
         Start-Process cmd.exe -ArgumentList $cmdArgs
 
         # Gracefully close this bootstrap window after launching the new one.
