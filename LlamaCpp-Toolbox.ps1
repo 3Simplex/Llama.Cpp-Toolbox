@@ -2,16 +2,20 @@
 # Initialize the program then install or run it.
 # This also acts as the toolbox environment setup script.
 
+param(
+    [string]$Branch = "main"
+)
+
 # Llama.cpp-Toolbox version
 $global:version = "0.31.0"
 
 #$global:debug = $true
 
 # The directory where LlamaCpp-Toolbox.ps1 is initialized.
-$global:path = $PSScriptRoot 
+$global:path = $PSScriptRoot
 
 # Ensure we are starting on the right path.
-Set-Location $path 
+Set-Location $path
 
 ### --- Environment PATH Fix --- ###
 # Relaunching into a dev console can sometimes fail to inherit the full user PATH.
@@ -24,7 +28,7 @@ try {
     # Combine the existing path with the machine, user, and winget paths.
     $existingPath = $env:PATH.Split(';')
     $fullPath = ($existingPath + $machinePath.Split(';') + $userPath.Split(';') + $wingetPath) | Select-Object -Unique
-    
+
     # Reassemble and set the new PATH
     $env:PATH = $fullPath -join ';'
     Write-Host "Successfully reconstructed environment PATH to find external tools." -ForegroundColor DarkGreen
@@ -43,9 +47,9 @@ function Find-VsDevCmd {
             Write-Warning "vswhere.exe not found. Cannot locate Visual Studio."
             return $null
         }
-        
-        $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-        
+
+        $vsPath = & $vswhere -latest -prerelease -version '[16.0,)' -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+
         if ($vsPath) {
             $devCmdPath = Join-Path $vsPath "Common7\Tools\VsDevCmd.bat"
             if (Test-Path $devCmdPath) {
@@ -63,27 +67,28 @@ function Find-VsDevCmd {
 # --- Environment Setup: Ensure we are running in a VS Developer Shell ---
 if (-not $env:VSCMD_ARG_TGT_ARCH) {
     Write-Host "Not in a developer environment. Relaunching..." -ForegroundColor Yellow
-    
+
     $devCmdPath = Find-VsDevCmd
-    
+
     if (-not $devCmdPath) {
         Write-Error "Visual Studio 2019 or newer with the 'Desktop development with C++' workload is required."
         Add-Type -AssemblyName System.Windows.Forms
-        [System.Windows.Forms.MessageBox]::Show("Could not find a valid Visual Studio C++ environment.`n`nPlease install 'Visual Studio Build Tools 2022' (or Community/Pro/Enterprise).`n`nIMPORTANT: During installation, you MUST select the 'Desktop development with C++' workload.`n`nAfter installation, please run this script again.", "Prerequisite Missing", "OK", "Error")
+        [System.Windows.Forms.MessageBox]::Show("Could not find a valid Visual Studio C++ environment.`n`nPlease install 'Visual Studio Build Tools (2019 or newer)' (or Community/Pro/Enterprise).`n`nIMPORTANT: During installation, you MUST select the 'Desktop development with C++' workload.`n`nAfter installation, please run this script again.", "Prerequisite Missing", "OK", "Error")
         Start-Process "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
         Exit
     }
-    
+
     $currentScript = $PSCommandPath
-    $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" "" "
+    $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+    $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "
     Start-Process cmd.exe -ArgumentList $cmdArgs
     Exit
 }
 # --- End of Environment Setup ---
 
 # Define global paths and settings
-$global:models = "$path\llama.cpp\models" 
-$global:NumberOfCores = [Environment]::ProcessorCount / 2 
+$global:models = "$path\llama.cpp\models"
+$global:NumberOfCores = [Environment]::ProcessorCount / 2
 
 ### Function to install vcpkg and curl ###
 function Install-VcpkgAndCurl {
@@ -92,7 +97,7 @@ function Install-VcpkgAndCurl {
     try {
         if (-not (Test-Path $vcpkgDir)) { git clone https://github.com/microsoft/vcpkg.git $vcpkgDir }
         if (-not (Test-Path "$vcpkgDir\vcpkg.exe")) { & "$vcpkgDir\bootstrap-vcpkg.bat" -disableMetrics }
-        
+
         Write-Host "Installing curl via vcpkg. EXPECT A LONG WAIT." -ForegroundColor Yellow
         $originalPath = $env:PATH
         $env:PATH = ($env:PATH.Split(';') | Where-Object { $_ -notlike '*pyenv*' }) -join ';'
@@ -112,15 +117,30 @@ function Install-VcpkgAndCurl {
 
 ### Function to install ccache ###
 function Install-Ccache {
-    Write-Host "Installing ccache for faster compilation..." -ForegroundColor Cyan
-    try {
-        winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
-        if (Get-Command ccache -ErrorAction SilentlyContinue) { Write-Host "ccache successfully installed." -ForegroundColor Green }
-        else { throw "ccache command not found after install. A manual restart might be required." }
+    Write-Host "Installing mandatory prerequisite: ccache..." -ForegroundColor Cyan
+
+    # First attempt
+    winget install --id Ccache.Ccache -e --scope user --accept-source-agreements --accept-package-agreements | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "ccache successfully installed." -ForegroundColor Green
+        return $true
     }
-    catch {
-        Write-Error "An error occurred during ccache installation: $_"; Read-Host "Press Enter to continue."
+
+    # If first attempt fails, update sources and retry
+    Write-Warning "Initial ccache installation failed. This can happen on a new PC if 'winget' sources are out of date."
+    Write-Host "Attempting to update winget sources... (This may take a moment)"
+    winget source update | Out-Null
+
+    Write-Host "Retrying ccache installation..."
+    winget install --id Ccache.Ccache -e --scope user --accept-source-agreements --accept-package-agreements | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "ccache successfully installed on the second attempt." -ForegroundColor Green
+        return $true
     }
+
+    # If both attempts fail
+    Write-Error "Failed to install ccache even after updating winget sources. This is a required dependency for the build process."
+    return $false
 }
 
 # Check for all prerequisites and install them if missing.
@@ -129,14 +149,32 @@ function PreReqs {
     $setupComplete = $false
     while (-not $setupComplete) {
         if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-            Write-Warning "Git is not found."; Read-Host "Press Enter to install Git, then close this window and re-run the script."; winget install --id Git.Git -e; Exit
+            Write-Warning "Git is not found."; Read-Host "Press Enter to install Git. The script will restart automatically."
+            winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
+            Write-Host "Relaunching in a new developer console..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
+            $devCmdPath = Find-VsDevCmd; $currentScript = $PSCommandPath; $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
         }
         if (-not (Get-Command pyenv -ErrorAction SilentlyContinue)) {
             Write-Warning "pyenv-win is not found."; Read-Host "Press Enter to install pyenv-win. The script will restart automatically."
             Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile "./install-pyenv-win.ps1"; &"./install-pyenv-win.ps1"
             Write-Host "Relaunching in a new developer console..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
-            $devCmdPath = Find-VsDevCmd
-            $currentScript = $PSCommandPath; $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
+            $devCmdPath = Find-VsDevCmd; $currentScript = $PSCommandPath; $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
+        }
+        if (-not (Get-Command ccache -ErrorAction SilentlyContinue)) {
+            Write-Warning "Required tool 'ccache' is not found. Installing now..."
+            $installSuccess = Install-Ccache
+            if ($installSuccess) {
+                Write-Host "Relaunching in a new developer console to apply PATH changes for ccache..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
+                $devCmdPath = Find-VsDevCmd; $currentScript = $PSCommandPath; $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+                $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
+            }
+            else {
+                Write-Error "ccache installation failed. Cannot continue."
+                Read-Host "Press Enter to exit."
+                Exit
+            }
         }
         if (-not (Test-Path "$path\vcpkg\scripts\buildsystems\vcpkg.cmake")) {
             Write-Warning "vcpkg with curl is not found."; Read-Host "Press Enter to begin the vcpkg installation (20-40 minutes)."; Install-VcpkgAndCurl; continue
@@ -145,10 +183,7 @@ function PreReqs {
         if (-not ((pyenv versions --bare) -contains $requiredPythonVersion)) {
             Write-Warning "Required Python version ($requiredPythonVersion) is not installed."; Write-Host "Installing via pyenv..."; pyenv install $requiredPythonVersion; pyenv rehash; continue
         }
-        if (-not (Get-Command ccache -ErrorAction SilentlyContinue)) {
-            $choice = Read-Host "Install 'ccache' to dramatically speed up future rebuilds? (y/n)"
-            if ($choice -eq 'y') { Install-Ccache; continue }
-        }
+
         Write-Host "All prerequisites are installed and ready." -ForegroundColor Green
         pyenv local $requiredPythonVersion; $setupComplete = $true
     }
@@ -160,16 +195,23 @@ function Main {
     if ($path -notmatch "[/\\]Llama\.Cpp-Toolbox$") {
         Write-Host "Bootstrapping: Script is not in the 'Llama.Cpp-Toolbox' directory." -ForegroundColor Yellow
         if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-            Write-Warning "Git is required to download the toolbox."; Read-Host "Press Enter to install Git, then re-run this script."; winget install --id Git.Git -e; Exit
+            Write-Warning "Git is required to download the toolbox."; Read-Host "Press Enter to install Git. The script will restart to continue."
+            winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
+            $currentScript = $PSCommandPath
+            $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $cmdArgs = "-NoProfile -NoExit -File ""$currentScript"" $branchArg"
+            Start-Process powershell.exe -ArgumentList $cmdArgs
+            Exit
         }
-        Write-Host "Cloning the repository..."
-        git clone https://github.com/3Simplex/Llama.Cpp-Toolbox.git
+        Write-Host "Cloning the repository from branch '$Branch'..."
+        git clone --branch $Branch https://github.com/3Simplex/Llama.Cpp-Toolbox.git
         $newScriptPath = Join-Path $path "Llama.Cpp-Toolbox\LlamaCpp-Toolbox.ps1"
         if (! (Test-Path $newScriptPath)) {
             Write-Error "Failed to clone repository."; Read-Host "Press Enter to exit."; Exit
         }
         $devCmdPath = Find-VsDevCmd
-        $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$newScriptPath"" "" "
+        $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+        $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$newScriptPath"" $branchArg "" "
         Start-Process cmd.exe -ArgumentList $cmdArgs
 
         # Gracefully close this bootstrap window after launching the new one.
@@ -186,12 +228,12 @@ function Main {
         Read-Host "Press Enter to exit."
         Exit
     }
-    
+
     # Proceed with normal startup.
     PreReqs
 
     # Load modules now that all prerequisites are confirmed.
-    Import-Module $path\lib\modules\Toolbox-Config.psm1 
+    Import-Module $path\lib\modules\Toolbox-Config.psm1
     Import-Module $path\lib\modules\Llama-Chat.psm1
     Import-Module $path\lib\modules\Toolbox-Functions.psm1
     Import-Module $path\lib\modules\Toolbox-GUI.psm1
@@ -203,7 +245,7 @@ function Main {
 
     # If the llama.cpp directory is missing, install it.
     if (-not (Test-Path "$path\llama.cpp")) {
-        Write-Warning "The llama.cpp directory is missing. Installing it now..."; InstallLlama; $global:firstRun = "True" 
+        Write-Warning "The llama.cpp directory is missing. Installing it now..."; InstallLlama; $global:firstRun = "True"
     }
 
     # Populate the GUI with the latest info.
