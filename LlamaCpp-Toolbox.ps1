@@ -118,32 +118,29 @@ function Install-VcpkgAndCurl {
 ### Function to install ccache ###
 function Install-Ccache {
     Write-Host "Installing mandatory prerequisite: ccache..." -ForegroundColor Cyan
-    try {
-        # First attempt
-        winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
-    }
-    catch {
-        Write-Warning "Initial ccache installation failed. This can happen on a new PC if 'winget' sources are out of date."
-        Write-Host "Attempting to update winget sources... (This may take a moment)"
-        try {
-            winget source update
-            Write-Host "Retrying ccache installation..."
-            # Second attempt
-            winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
-        }
-        catch {
-            Write-Error "Failed to install ccache even after updating winget sources. This is a required dependency for the build process. Please try to install it manually and then restart the script."
-            Read-Host "Press Enter to exit."
-            Exit
-        }
+
+    # First attempt
+    winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "ccache successfully installed." -ForegroundColor Green
+        return $true
     }
 
-    if (-not (Get-Command ccache -ErrorAction SilentlyContinue)) {
-        Write-Warning "ccache was installed, but the 'ccache' command is not available in the current session. The script will restart to find it."
+    # If first attempt fails, update sources and retry
+    Write-Warning "Initial ccache installation failed. This can happen on a new PC if 'winget' sources are out of date."
+    Write-Host "Attempting to update winget sources... (This may take a moment)"
+    winget source update
+
+    Write-Host "Retrying ccache installation..."
+    winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "ccache successfully installed on the second attempt." -ForegroundColor Green
+        return $true
     }
-    else {
-        Write-Host "ccache successfully installed." -ForegroundColor Green
-    }
+
+    # If both attempts fail
+    Write-Error "Failed to install ccache even after updating winget sources. This is a required dependency for the build process."
+    return $false
 }
 
 # Check for all prerequisites and install them if missing.
@@ -167,10 +164,17 @@ function PreReqs {
         }
         if (-not (Get-Command ccache -ErrorAction SilentlyContinue)) {
             Write-Warning "Required tool 'ccache' is not found. Installing now..."
-            Install-Ccache
-            Write-Host "Relaunching in a new developer console to apply PATH changes for ccache..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
-            $devCmdPath = Find-VsDevCmd; $currentScript = $PSCommandPath; $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
-            $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
+            $installSuccess = Install-Ccache
+            if ($installSuccess) {
+                Write-Host "Relaunching in a new developer console to apply PATH changes for ccache..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
+                $devCmdPath = Find-VsDevCmd; $currentScript = $PSCommandPath; $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+                $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
+            }
+            else {
+                Write-Error "ccache installation failed. Cannot continue."
+                Read-Host "Press Enter to exit."
+                Exit
+            }
         }
         if (-not (Test-Path "$path\vcpkg\scripts\buildsystems\vcpkg.cmake")) {
             Write-Warning "vcpkg with curl is not found."; Read-Host "Press Enter to begin the vcpkg installation (20-40 minutes)."; Install-VcpkgAndCurl; continue
