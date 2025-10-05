@@ -117,20 +117,32 @@ function Install-VcpkgAndCurl {
 
 ### Function to install ccache ###
 function Install-Ccache {
-    Write-Host "Installing ccache for faster compilation..." -ForegroundColor Cyan
+    Write-Host "Installing mandatory prerequisite: ccache..." -ForegroundColor Cyan
     try {
+        # First attempt
         winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
-        if (Get-Command ccache -ErrorAction SilentlyContinue) {
-            Write-Host "ccache successfully installed." -ForegroundColor Green
-        }
-        else {
-             Write-Warning "ccache may have been installed, but the 'ccache' command is not available in the current session. A new terminal window may be required to use it in the future. Continuing without ccache."
-        }
     }
     catch {
-        Write-Warning "Could not automatically install 'ccache'. This is an optional tool to speed up compilations and is not required for the toolbox to function."
-        Write-Warning "This can sometimes happen on a new PC if 'winget' sources are out of date. You can try running 'winget source update' in a separate terminal and then restart this script if you still wish to install ccache."
-        Read-Host "Press Enter to continue."
+        Write-Warning "Initial ccache installation failed. This can happen on a new PC if 'winget' sources are out of date."
+        Write-Host "Attempting to update winget sources... (This may take a moment)"
+        try {
+            winget source update
+            Write-Host "Retrying ccache installation..."
+            # Second attempt
+            winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
+        }
+        catch {
+            Write-Error "Failed to install ccache even after updating winget sources. This is a required dependency for the build process. Please try to install it manually and then restart the script."
+            Read-Host "Press Enter to exit."
+            Exit
+        }
+    }
+
+    if (-not (Get-Command ccache -ErrorAction SilentlyContinue)) {
+        Write-Warning "ccache was installed, but the 'ccache' command is not available in the current session. The script will restart to find it."
+    }
+    else {
+        Write-Host "ccache successfully installed." -ForegroundColor Green
     }
 }
 
@@ -143,18 +155,21 @@ function PreReqs {
             Write-Warning "Git is not found."; Read-Host "Press Enter to install Git. The script will restart automatically."
             winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
             Write-Host "Relaunching in a new developer console..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
-            $devCmdPath = Find-VsDevCmd
-            $currentScript = $PSCommandPath
-            $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $devCmdPath = Find-VsDevCmd; $currentScript = $PSCommandPath; $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
             $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
         }
         if (-not (Get-Command pyenv -ErrorAction SilentlyContinue)) {
             Write-Warning "pyenv-win is not found."; Read-Host "Press Enter to install pyenv-win. The script will restart automatically."
             Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile "./install-pyenv-win.ps1"; &"./install-pyenv-win.ps1"
             Write-Host "Relaunching in a new developer console..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
-            $devCmdPath = Find-VsDevCmd
-            $currentScript = $PSCommandPath
-            $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $devCmdPath = Find-VsDevCmd; $currentScript = $PSCommandPath; $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
+        }
+        if (-not (Get-Command ccache -ErrorAction SilentlyContinue)) {
+            Write-Warning "Required tool 'ccache' is not found. Installing now..."
+            Install-Ccache
+            Write-Host "Relaunching in a new developer console to apply PATH changes for ccache..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
+            $devCmdPath = Find-VsDevCmd; $currentScript = $PSCommandPath; $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
             $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
         }
         if (-not (Test-Path "$path\vcpkg\scripts\buildsystems\vcpkg.cmake")) {
@@ -164,10 +179,7 @@ function PreReqs {
         if (-not ((pyenv versions --bare) -contains $requiredPythonVersion)) {
             Write-Warning "Required Python version ($requiredPythonVersion) is not installed."; Write-Host "Installing via pyenv..."; pyenv install $requiredPythonVersion; pyenv rehash; continue
         }
-        if (-not (Get-Command ccache -ErrorAction SilentlyContinue)) {
-            $choice = Read-Host "Install 'ccache' to dramatically speed up future rebuilds? (y/n)"
-            if ($choice -eq 'y') { Install-Ccache; continue }
-        }
+
         Write-Host "All prerequisites are installed and ready." -ForegroundColor Green
         pyenv local $requiredPythonVersion; $setupComplete = $true
     }
