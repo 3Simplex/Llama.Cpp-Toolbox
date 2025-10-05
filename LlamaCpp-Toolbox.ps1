@@ -2,6 +2,10 @@
 # Initialize the program then install or run it.
 # This also acts as the toolbox environment setup script.
 
+param(
+    [string]$Branch = "main"
+)
+
 # Llama.cpp-Toolbox version
 $global:version = "0.31.0"
 
@@ -75,7 +79,8 @@ if (-not $env:VSCMD_ARG_TGT_ARCH) {
     }
 
     $currentScript = $PSCommandPath
-    $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" "" "
+    $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+    $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "
     Start-Process cmd.exe -ArgumentList $cmdArgs
     Exit
 }
@@ -133,14 +138,18 @@ function PreReqs {
             winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
             Write-Host "Relaunching in a new developer console..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
             $devCmdPath = Find-VsDevCmd
-            $currentScript = $PSCommandPath; $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
+            $currentScript = $PSCommandPath
+            $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
         }
         if (-not (Get-Command pyenv -ErrorAction SilentlyContinue)) {
             Write-Warning "pyenv-win is not found."; Read-Host "Press Enter to install pyenv-win. The script will restart automatically."
             Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile "./install-pyenv-win.ps1"; &"./install-pyenv-win.ps1"
             Write-Host "Relaunching in a new developer console..." -ForegroundColor Yellow; Start-Sleep -Seconds 3
             $devCmdPath = Find-VsDevCmd
-            $currentScript = $PSCommandPath; $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
+            $currentScript = $PSCommandPath
+            $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $cmdArgs = "/k "" ""$devCmdPath"" -arch=x64 && powershell.exe -NoProfile -NoExit -File ""$currentScript"" $branchArg "" "; Start-Process cmd.exe -ArgumentList $cmdArgs; Exit
         }
         if (-not (Test-Path "$path\vcpkg\scripts\buildsystems\vcpkg.cmake")) {
             Write-Warning "vcpkg with curl is not found."; Read-Host "Press Enter to begin the vcpkg installation (20-40 minutes)."; Install-VcpkgAndCurl; continue
@@ -167,12 +176,13 @@ function Main {
             Write-Warning "Git is required to download the toolbox."; Read-Host "Press Enter to install Git. The script will restart to continue."
             winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
             $currentScript = $PSCommandPath
-            $cmdArgs = "-NoProfile -NoExit -File ""$currentScript"" "
+            $branchArg = if ($PSBoundParameters.ContainsKey('Branch')) { "-Branch $Branch" } else { "" }
+            $cmdArgs = "-NoProfile -NoExit -File ""$currentScript"" $branchArg"
             Start-Process powershell.exe -ArgumentList $cmdArgs
             Exit
         }
-        Write-Host "Cloning the repository..."
-        git clone https://github.com/3Simplex/Llama.Cpp-Toolbox.git
+        Write-Host "Cloning the repository from branch '$Branch'..."
+        git clone --branch $Branch https://github.com/3Simplex/Llama.Cpp-Toolbox.git
         $newScriptPath = Join-Path $path "Llama.Cpp-Toolbox\LlamaCpp-Toolbox.ps1"
         if (! (Test-Path $newScriptPath)) {
             Write-Error "Failed to clone repository."; Read-Host "Press Enter to exit."; Exit
