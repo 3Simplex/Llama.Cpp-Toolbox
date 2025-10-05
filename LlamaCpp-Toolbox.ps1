@@ -120,7 +120,7 @@ function Install-Ccache {
     Write-Host "Installing mandatory prerequisite: ccache..." -ForegroundColor Cyan
 
     # First attempt
-    winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
+    winget install --id ccache.ccache -e --scope user --accept-source-agreements --accept-package-agreements | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "ccache successfully installed." -ForegroundColor Green
         return $true
@@ -129,10 +129,10 @@ function Install-Ccache {
     # If first attempt fails, update sources and retry
     Write-Warning "Initial ccache installation failed. This can happen on a new PC if 'winget' sources are out of date."
     Write-Host "Attempting to update winget sources... (This may take a moment)"
-    winget source update
+    winget source update | Out-Null
 
     Write-Host "Retrying ccache installation..."
-    winget install --id ccache.ccache -e --accept-source-agreements --accept-package-agreements
+    winget install --id ccache.ccache -e --scope user --accept-source-agreements --accept-package-agreements | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "ccache successfully installed on the second attempt." -ForegroundColor Green
         return $true
