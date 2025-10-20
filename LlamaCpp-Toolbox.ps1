@@ -7,7 +7,7 @@ param(
 )
 
 # Llama.cpp-Toolbox version
-$global:version = "0.31.0"
+$global:version = "0.32.1"
 
 #$global:debug = $true
 

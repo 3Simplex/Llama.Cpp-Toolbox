@@ -1,1 +1,29 @@
+#    Linux/macOS use a Line Feed (LF) character.
+#    Windows uses a Carriage Return + Line Feed (CRLF) combination.
+
+
+
+# Auto-detect text files and ensure LF line endings in the repository
 * text=auto
+# Ensure LF line endings inside text files within the repository
+# * text eol=lf
+# Ensure CRLF line endings inside text files within the repository
+# * text eol=crlf
+
+# Windows batch scripts must use CRLF
+*.bat text eol=crlf
+
+# unix  line endings at unix files
+*.sh text eol=lf
+
+# Binary files should not be modified by Git
+*.png binary
+*.jpg binary
+*.pdf binary
+
+
+
+#    text=auto: Automatically detects whether a file is text or binary. If the file is text, Git converts line endings to LF on check-in. This prevents cross-platform issues caused by different EOL characters.
+#    *.bat text eol=crlf: Forces Windows batch scripts to always use CRLF for proper execution on Windows.
+#    *.go text eol=lf: Ensures Go files use LF, which is the standard line ending on Linux and macOS.
+#    *.png binary: Prevents Git from attempting to diff or alter binary files like PNGs, which are not human-readable and should not have EOL conversions.
