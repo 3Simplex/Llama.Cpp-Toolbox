@@ -573,11 +573,16 @@ function DetermineAction($index, $value, $ButtonState) {
                         $icon = [System.Windows.Forms.MessageBoxIcon]::Information
                         $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
                         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-                            & "$path\venv\Scripts\pip.exe" install cuda-toolkit
-                            try {
-                                if (nvcc --version) { $BuildTest = $true }
-                            } catch {
-                                [System.Windows.Forms.MessageBox]::Show("CUDA toolkit installation failed. Please install it manually.", "Installation Failed", "OK", "Error")
+                            $Label3.Text = "Installing CUDA Toolkit..."
+                            $main_form.Update()
+                            & "$path\venv\Scripts\pip.exe" install cuda-toolkit 2>&1 | Tee-Object -Variable output
+                            $TextBox2.Text = $output
+                            if ($LASTEXITCODE -eq 0) {
+                                $BuildTest = $true
+                                $Label3.Text = "CUDA Toolkit installed successfully."
+                            } else {
+                                $Label3.Text = "Installation failed."
+                                [System.Windows.Forms.MessageBox]::Show("CUDA toolkit installation failed. Please review the output and install it manually.", "Installation Failed", "OK", "Error")
                             }
                         }
                     }
@@ -592,12 +597,25 @@ function DetermineAction($index, $value, $ButtonState) {
                         $icon = [System.Windows.Forms.MessageBoxIcon]::Information
                         $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
                         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-                            & "$path\venv\Scripts\pip.exe" install vulkan_utils
-                            & "$path\venv\Scripts\vulkan-utils.exe" install-sdk
-                            try {
-                                if (vulkaninfo --help) { $BuildTest = $true }
-                            } catch {
-                                [System.Windows.Forms.MessageBox]::Show("Vulkan SDK installation failed. Please install it manually.", "Installation Failed", "OK", "Error")
+                            $Label3.Text = "Installing Vulkan utils..."
+                            $main_form.Update()
+                            & "$path\venv\Scripts\pip.exe" install vulkan_utils 2>&1 | Tee-Object -Variable output1
+                            $TextBox2.Text = $output1
+                            if ($LASTEXITCODE -eq 0) {
+                                $Label3.Text = "Installing Vulkan SDK..."
+                                $main_form.Update()
+                                & "$path\venv\Scripts\vulkan-utils.exe" install-sdk 2>&1 | Tee-Object -Variable output2
+                                $TextBox2.AppendText("`n" + $output2)
+                                if ($LASTEXITCODE -eq 0) {
+                                    $BuildTest = $true
+                                    $Label3.Text = "Vulkan SDK installed successfully."
+                                } else {
+                                    $Label3.Text = "Installation failed."
+                                    [System.Windows.Forms.MessageBox]::Show("Vulkan SDK installation failed. Please review the output and install it manually.", "Installation Failed", "OK", "Error")
+                                }
+                            } else {
+                                $Label3.Text = "Installation failed."
+                                [System.Windows.Forms.MessageBox]::Show("Vulkan utils installation failed. Please review the output and try again.", "Installation Failed", "OK", "Error")
                             }
                         }
                     }
