@@ -575,9 +575,11 @@ function DetermineAction($index, $value, $ButtonState) {
                         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
                             $Label3.Text = "Installing CUDA Toolkit..."
                             $main_form.Update()
-                            & "$path\venv\Scripts\pip.exe" install cuda-toolkit 2>&1 | Tee-Object -Variable output
+                            & "$path\venv\Scripts\pip.exe" install "cuda-toolkit[all]" 2>&1 | Tee-Object -Variable output
                             $TextBox2.Text = $output
                             if ($LASTEXITCODE -eq 0) {
+                                $cudaPath = & "$path\venv\Scripts\python.exe" -c "import os; import nvidia.cublas.lib; print(os.path.dirname(os.path.dirname(nvidia.cublas.lib.__file__)))"
+                                $env:CUDAToolkit_ROOT = $cudaPath
                                 $BuildTest = $true
                                 $Label3.Text = "CUDA Toolkit installed successfully."
                             } else {
@@ -607,6 +609,8 @@ function DetermineAction($index, $value, $ButtonState) {
                                 & "$path\venv\Scripts\vulkan-utils.exe" install-sdk 2>&1 | Tee-Object -Variable output2
                                 $TextBox2.AppendText("`n" + $output2)
                                 if ($LASTEXITCODE -eq 0) {
+                                    $vulkanSdkPath = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Khronos\VulkanSDK").VK_SDK_PATH
+                                    $env:VULKAN_SDK = $vulkanSdkPath
                                     $BuildTest = $true
                                     $Label3.Text = "Vulkan SDK installed successfully."
                                 } else {
