@@ -565,12 +565,43 @@ function DetermineAction($index, $value, $ButtonState) {
             else {
                 if($value.Trim() -eq "cuda"){
                     try {if (nvcc --version){$BuildTest = $true}
-                    } catch {$BuildTest = $false;[System.Windows.Forms.MessageBox]::Show("Nvidia CudaToolkit is required for NVIDIA GPU build.")}
+                    } catch {
+                        $BuildTest = $false
+                        $message = "CUDA Toolkit is required, click OK to install it now."
+                        $title = "CUDA Toolkit Not Found"
+                        $buttons = [System.Windows.Forms.MessageBoxButtons]::OKCancel
+                        $icon = [System.Windows.Forms.MessageBoxIcon]::Information
+                        $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
+                        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                            & "$path\venv\Scripts\pip.exe" install cuda-toolkit
+                            try {
+                                if (nvcc --version) { $BuildTest = $true }
+                            } catch {
+                                [System.Windows.Forms.MessageBox]::Show("CUDA toolkit installation failed. Please install it manually.", "Installation Failed", "OK", "Error")
+                            }
+                        }
                     }
+                }
                 if($value.Trim() -eq "vulkan"){
                     try {if (vulkaninfo --help){$BuildTest = $true}
-                    } catch {$BuildTest = $false;[System.Windows.Forms.MessageBox]::Show("AMD VulkanSDK is required for AMD GPU build.")}
+                    } catch {
+                        $BuildTest = $false
+                        $message = "Vulkan SDK is required, click OK to install it now."
+                        $title = "Vulkan SDK Not Found"
+                        $buttons = [System.Windows.Forms.MessageBoxButtons]::OKCancel
+                        $icon = [System.Windows.Forms.MessageBoxIcon]::Information
+                        $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
+                        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                            & "$path\venv\Scripts\pip.exe" install vulkan_utils
+                            & "$path\venv\Scripts\vulkan-utils.exe" install-sdk
+                            try {
+                                if (vulkaninfo --help) { $BuildTest = $true }
+                            } catch {
+                                [System.Windows.Forms.MessageBox]::Show("Vulkan SDK installation failed. Please install it manually.", "Installation Failed", "OK", "Error")
+                            }
+                        }
                     }
+                }
                 if($value.Trim() -eq "cpu"){
                     $BuildTest = $true
                 }
